@@ -21,13 +21,15 @@
 
 body {
     font-family: Arial, sans-serif;
+    /* Базовые настройки фона для ПК (фиксированный) */
     background: url('colors.png') no-repeat center center fixed;
     background-size: cover;
     background-color: var(--color-canvas-subtle);
     color: #24292e;
-    margin: 0; padding: 0; height: 100vh;
+    margin: 0; padding: 0; 
+    min-height: 100vh; /* Используем min-height вместо height для прокрутки фона */
     display: flex; flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden; /* Скрываем горизонтальный скролл */
 }
 
 /* --- BUTTONS --- */
@@ -208,6 +210,21 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
 /* ========================================= */
 
 @media (max-width: 800px) {
+    /* 2.0. PROFESSIONAL BACKGROUND FIX */
+    body {
+        /* Принудительно включаем картинку, перезаписывая любые 'none' */
+        background-image: url('colors.png'); 
+        
+        /* 'scroll' - картинка скроллится вместе с контентом (нет дерганий на iOS) */
+        background-attachment: scroll; 
+        
+        /* 'cover' - заполняет весь экран, обрезая лишнее, но сохраняя пропорции */
+        background-size: cover; 
+        
+        background-position: center center;
+        background-repeat: no-repeat;
+    }
+
     /* 2.1 Header & Nav */
     header { height: 60px; padding: 0 10px; justify-content: space-between; }
     .header-inner { justify-content: space-between; }
@@ -240,9 +257,6 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
     .answer-btn { padding: 15px; font-size: 15px; }
     .nav-controls { padding-bottom: 20px; }
     
-    /* 2.6 Hide Background Image on Mobile for readability/speed */
-    body { background-image: none; background-color: #f0f2f5; }
-    
-    /* 2.7 Pagination scroll */
+    /* 2.6 Pagination scroll */
     .pagination-container { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; }
 }
