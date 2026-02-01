@@ -3,14 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ПДД Профи</title>
-    <!-- Подключение библиотеки Google -->
+    <title>pdd unique</title>
+    
+    <!-- Подключение библиотеки Google Auth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <!-- Подключение VK Open API -->
+    <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript"></script>
+
+    <!-- Подключение Firebase (База данных) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <header id="main-header" style="display:none;"> <!-- Скрываем хедер до входа -->
+    <header id="main-header" style="display:none;">
         <div class="header-inner">
             <nav class="nav-bar">
                 <button class="nav-btn active" onclick="app.navigate('tickets')">Билеты</button>
@@ -20,7 +29,6 @@
                 <button class="nav-btn" onclick="app.navigate('mistakes')">Ошибки</button>
             </nav>
             
-            <!-- Профиль теперь справа абсолютно -->
             <div class="profile-nav-btn" onclick="app.handleProfileClick()">
                 <span id="header-username">Профиль</span>
                 <div class="profile-avatar-small" id="header-avatar">👤</div>
@@ -39,20 +47,22 @@
                         <div class="shape-2"></div>
                     </div>
                     <h2 id="auth-title">Вход в профиль</h2>
-                    <p style="color:#57606a; margin-bottom:20px;">Войдите, чтобы получить доступ к билетам и сохранять прогресс.</p>
+                    <p style="color:#57606a; margin-bottom:20px;">Войдите, чтобы синхронизировать прогресс между устройствами.</p>
                     
                     <!-- Соцсети -->
                     <div class="social-auth">
+                        <!-- Кнопка VK -->
+                        <button class="vk-btn" onclick="app.loginVK()">
+                            <span style="font-weight:bold; margin-right:8px; font-family: sans-serif;">VK</span> Войти через ВКонтакте
+                        </button>
+                        
+                        <div style="height: 10px;"></div>
+
                         <!-- Контейнер для кнопки Google -->
                         <div id="google_btn_container"></div>
-                        
-                        <!-- Кнопка VK (Заготовка) -->
-                        <button class="vk-btn" onclick="alert('Вход через VK будет доступен в следующем обновлении')">
-                            <span style="font-weight:bold; margin-right:8px;">VK</span> Войти через ВКонтакте
-                        </button>
                     </div>
 
-                    <div class="divider">или через логин</div>
+                    <div class="divider">или локальный профиль</div>
 
                     <div class="auth-form">
                         <input type="text" id="auth-login" placeholder="Придумайте Логин" autocomplete="off">
@@ -63,6 +73,7 @@
                     <div class="auth-footer">
                         <span id="auth-toggle-text">Нет аккаунта?</span>
                         <button class="text-btn" onclick="app.toggleAuthMode()">Зарегистрироваться</button>
+                        <p style="font-size: 10px; margin-top: 10px; color: #999;">Локальный профиль сохраняется только в этом браузере.</p>
                     </div>
                 </div>
             </section>
@@ -73,7 +84,7 @@
                     <div class="profile-avatar-large" id="profile-avatar-large">👤</div>
                     <div class="profile-info">
                         <h2 id="profile-name" style="margin:0; color:#fff;">Пользователь</h2>
-                        <p style="color:#adbac7; font-size:14px; margin-top:5px;">Ученик</p>
+                        <p id="profile-sync-status" style="color:#adbac7; font-size:14px; margin-top:5px;">Синхронизация отключена</p>
                     </div>
                     <button class="secondary-btn-dark" onclick="app.logout()">Выйти</button>
                 </div>
