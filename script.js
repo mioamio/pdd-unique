@@ -512,6 +512,7 @@ const app = {
         const { questions, currentIndex, answers, mode } = this.state;
         const q = questions[currentIndex];
         
+        // 1. Логика для Марафона (скролл к кнопке номера)
         if (mode === 'marathon') {
             document.querySelectorAll('.marathon-btn.active').forEach(b => b.classList.remove('active'));
             const curBtn = document.getElementById(`m-btn-${currentIndex}`);
@@ -520,6 +521,7 @@ const app = {
                 curBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         } else {
+            // 2. Логика для Обычного режима (пагинация)
             const pgContainer = document.getElementById('pagination');
             pgContainer.innerHTML = questions.map((_, i) => {
                 let cls = '';
@@ -529,8 +531,13 @@ const app = {
                 return `<button class="page-btn ${cls}" onclick="app.jumpTo(${i})">${i+1}</button>`;
             }).join('');
 
+            // Автоскролл пагинации
             const currentBtn = pgContainer.children[currentIndex];
-            if(currentBtn) currentBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            if(currentBtn) {
+                setTimeout(() => {
+                    currentBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }, 10);
+            }
         }
 
         const container = document.getElementById('current-question-container');
@@ -539,12 +546,14 @@ const app = {
         const userAnswer = answers[currentIndex];
         const isAnswered = userAnswer !== undefined;
 
+        // 3. Формирование картинки (с Lazy Loading)
         let imgHTML = '';
         if (q.realUrl && q.realUrl !== 'no_image') {
             const fName = `${this.pad(q.biletNumber)}${this.pad(q.questNumber)}.jpg`;
-            imgHTML = `<img src="image/${fName}" class="q-image" onerror="this.style.display='none'">`;
+            imgHTML = `<img src="image/${fName}" loading="lazy" class="q-image" onerror="this.style.display='none'">`;
         }
 
+        // 4. Формирование вариантов ответа
         const answersHTML = q.v.map((text, idx) => {
             if (!text) return '';
             const ansNum = idx + 1;
@@ -555,13 +564,13 @@ const app = {
             }
             const disabled = isAnswered ? 'disabled' : '';
             return `<li><button class="answer-btn ${cls}" ${disabled} onclick="app.handleTrainingAnswer(${idx})">
-                <span style="font-weight:bold; margin-right:10px;">${ansNum}.</span> ${text}
+                <span style="font-weight:600; margin-right:10px; color:#0969da;">${ansNum}.</span> <span>${text}</span>
             </button></li>`;
         }).join('');
 
         const hintButton = `
             <div style="text-align: center; margin-top: 15px;">
-                <button style="border:none; background:none; text-decoration:underline; color:#0969da; cursor:pointer;" onclick="app.toggleHint()">💡 Показать подсказку</button>
+                <button style="border:none; background:none; text-decoration:underline; color:#0969da; cursor:pointer; font-size:14px;" onclick="app.toggleHint()">💡 Показать подсказку</button>
             </div>
         `;
 
@@ -570,9 +579,10 @@ const app = {
                 <strong>Пояснение:</strong><br>${this.formatComment(q.comments)}
             </div>`;
 
+        // 5. Вывод HTML на страницу
         container.innerHTML = `
             <div class="question-card">
-                <div class="q-meta" style="font-size: 12px; color: #777; margin-bottom: 5px;">
+                <div class="q-meta" style="font-size: 13px; color: #777; margin-bottom: 8px; font-weight:500;">
                     Билет ${q.biletNumber}, Вопрос ${q.questNumber}
                 </div>
                 <div class="q-text">${q.quest}</div>
@@ -583,6 +593,7 @@ const app = {
             </div>
         `;
 
+        // 6. Кнопки "Далее" / "Завершить"
         const btnNext = document.getElementById('btn-next');
         const btnFinish = document.getElementById('btn-finish-train');
         
@@ -593,7 +604,14 @@ const app = {
             btnNext.style.display = 'none';
             btnFinish.style.display = 'block';
         }
+        
+        if (isAnswered) {
+        } else {
+             document.querySelector('main').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
     },
+    
 
     toggleHint() {
         const box = document.getElementById('hint-box');
@@ -675,26 +693,30 @@ const app = {
     renderExamDashboard() {
         const grid = document.getElementById('exam-grid');
         const { questions, answers } = this.state;
-
         grid.innerHTML = questions.map((q, idx) => {
             const isAnswered = answers[idx] !== undefined;
             const cls = isAnswered ? 'answered' : '';
             
             let imgUrl = 'style="display:none"';
+            let imgTag = '';
+            
+            // Оптимизация: показываем заглушку цвета, пока грузится картинка
             if (q.realUrl && q.realUrl !== 'no_image') {
                 const fName = `${this.pad(q.biletNumber)}${this.pad(q.questNumber)}.jpg`;
-                imgUrl = `src="image/${fName}"`;
+                // loading="lazy" - ключевое для производительности на мобильных
+                imgTag = `<img src="image/${fName}" loading="lazy" class="exam-card-img" onerror="this.style.display='none'">`;
             }
 
             let label = idx + 1;
             if (idx >= 20) label = `+${idx - 19}`;
 
+            // Если картинки нет, рендерим текст внутри карточки
             return `
                 <div class="exam-card ${cls}" onclick="app.openExamQuestion(${idx})">
                     <span class="exam-card-num">${label}</span>
-                    <img ${imgUrl} class="exam-card-img" onerror="this.style.display='none'">
+                    ${imgTag}
                     <div class="exam-card-body">
-                        ${q.quest}
+                        ${q.quest.substring(0, 60)}${q.quest.length > 60 ? '...' : ''}
                     </div>
                 </div>
             `;
