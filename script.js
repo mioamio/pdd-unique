@@ -1,7 +1,9 @@
 const app = {
     indexData: null,
     currentUser: null,
-    userAvatar: null, // Ссылка на аватарку
+    userAvatar: null,
+    authSource: 'local', // 'local', 'google', 'vk'
+    remoteId: null,      // ID для синхронизации с БД
     userData: {
         mistakes: [],
         marathon: {}, 
@@ -10,7 +12,20 @@ const app = {
     },
     authMode: 'login',
     
-    GOOGLE_CLIENT_ID: "1096394669375-00j6f5olv616q08fcp6uju2pr091sa5r.apps.googleusercontent.com", 
+    // --- КОНФИГУРАЦИЯ ---
+    GOOGLE_CLIENT_ID: "1096394669375-00j6f5olv616q08fcp6uju2pr091sa5r.apps.googleusercontent.com",
+    
+    VK_APP_ID: 54438630, 
+    
+    FIREBASE_CONFIG: {
+        apiKey: "AIzaSyAPnAQXRmMRiJY5gHLImXbF8xlwHcQ89BA",
+        authDomain: "pdd-unique.firebaseapp.com",
+        databaseURL: "https://pdd-unique-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "pdd-unique",
+        storageBucket: "pdd-unique.firebasestorage.app",
+        messagingSenderId: "140779580830",
+        appId: "1:140779580830:web:7cceba0219ba5e99957a8f"
+    },
 
     state: {
         mode: 'training',
@@ -27,20 +42,35 @@ const app = {
 
     async init() {
         try {
+            // Инициализация Firebase
+            if(window.firebase && !firebase.apps.length) {
+                firebase.initializeApp(this.FIREBASE_CONFIG);
+                this.db = firebase.database();
+            }
+
+            // Инициализация VK
+            if (window.VK) {
+                VK.init({ apiId: this.VK_APP_ID });
+            }
+
             const res = await fetch('index.json');
             this.indexData = await res.json();
             
-            // Инициализация Google
             this.initGoogleAuth();
 
-            // Проверка сессии
+            // Проверка сохраненной сессии
             const savedUser = localStorage.getItem('pdd_current_user');
             const savedAvatar = localStorage.getItem('pdd_current_avatar');
+            const savedSource = localStorage.getItem('pdd_auth_source');
+            const savedRemoteId = localStorage.getItem('pdd_remote_id');
             
             if (savedUser) {
                 this.currentUser = savedUser;
                 this.userAvatar = savedAvatar;
-                this.loadUserData();
+                this.authSource = savedSource || 'local';
+                this.remoteId = savedRemoteId;
+                
+                await this.loadUserData();
                 this.onLoginSuccess();
             } else {
                 this.navigate('auth'); 
@@ -51,17 +81,106 @@ const app = {
         } catch (e) { console.error("Init Error:", e); }
     },
 
-    // --- AUTH SYSTEM (Google & Local) ---
-    
+    // --- DB SYNC LOGIC ---
+    async loadUserData() {
+        // 1. Сначала пытаемся загрузить локально (быстро)
+        let localData = null;
+        if (this.currentUser) {
+            const data = localStorage.getItem(`pdd_data_${this.currentUser}`);
+            if (data) localData = JSON.parse(data);
+        }
+
+        // 2. Если есть удаленный ID и доступна БД - грузим оттуда
+        if (this.remoteId && this.db) {
+            try {
+                const snapshot = await this.db.ref('users/' + this.remoteId).get();
+                if (snapshot.exists()) {
+                    const remoteData = snapshot.val();
+                    // Можно добавить логику слияния, но пока просто берем удаленные, если они новее/полнее
+                    // Для простоты: удаленные данные перетирают локальные при входе
+                    this.userData = remoteData;
+                    // Обновляем локальную копию
+                    this.saveLocal(); 
+                } else {
+                    // Если в облаке пусто, а локально есть - сохраняем в облако
+                    if (localData) {
+                        this.userData = localData;
+                        this.saveUserData();
+                    } else {
+                        this.resetUserData();
+                    }
+                }
+            } catch (e) {
+                console.error("Firebase Load Error:", e);
+                // Если ошибка сети, используем локальные
+                this.userData = localData || this.resetUserData();
+            }
+        } else {
+            this.userData = localData || this.resetUserData();
+        }
+        
+        // Гарантируем структуру
+        if (!this.userData.mistakes) this.userData.mistakes = [];
+        if (!this.userData.marathon) this.userData.marathon = {};
+        if (!this.userData.examStats) this.userData.examStats = { passed: 0, failed: 0, total: 0 };
+    },
+
+    resetUserData() {
+        return { mistakes: [], marathon: {}, examStats: { passed: 0, failed: 0, total: 0 }, ticketsSolved: 0 };
+    },
+
+    saveUserData() {
+        if (!this.currentUser) return;
+        
+        // 1. Сохраняем локально
+        this.saveLocal();
+
+        // 2. Если есть синхронизация - отправляем в облако
+        if (this.remoteId && this.db) {
+            this.db.ref('users/' + this.remoteId).set(this.userData).catch(err => {
+                console.error("Sync Error:", err);
+            });
+        }
+    },
+
+    saveLocal() {
+        localStorage.setItem(`pdd_data_${this.currentUser}`, JSON.stringify(this.userData));
+    },
+
+
+    // --- AUTH SYSTEM (VK) ---
+    loginVK() {
+        if (!window.VK) {
+            alert('VK API не загрузился. Проверьте интернет или блокировщики рекламы.');
+            return;
+        }
+        VK.Auth.login((response) => {
+            if (response.session) {
+                console.log("VK Session:", response.session);
+                const user = response.session.user;
+                
+                // Формируем данные
+                this.currentUser = (user.first_name + " " + user.last_name).trim();
+                // VK Open API не всегда отдает фото сразу, используем заглушку или ID
+                this.userAvatar = `https://vk.com/images/camera_200.png`; 
+                this.authSource = 'vk';
+                this.remoteId = 'vk_' + user.id;
+
+                this.saveSession();
+                this.loadUserData().then(() => this.onLoginSuccess());
+            } else {
+                alert('Не удалось войти через VK');
+            }
+        }, 4); // Права доступа (4 = фото... хотя для Open API это игнорируется часто)
+    },
+
+    // --- AUTH SYSTEM (Google) ---
     initGoogleAuth() {
         if (!window.google) return;
-        
         window.google.accounts.id.initialize({
             client_id: this.GOOGLE_CLIENT_ID,
             callback: this.handleGoogleCredential.bind(this)
         });
-        
-        // Рендер кнопки
         window.google.accounts.id.renderButton(
             document.getElementById("google_btn_container"),
             { theme: "outline", size: "large", width: "100%", text: "continue_with" } 
@@ -69,133 +188,104 @@ const app = {
     },
 
     handleGoogleCredential(response) {
-        // Декодируем JWT токен
         const payload = this.decodeJwt(response.credential);
-        console.log("Google User:", payload);
-
+        
         this.currentUser = payload.name || payload.email;
         this.userAvatar = payload.picture;
-        
-        // Сохраняем сессию
-        localStorage.setItem('pdd_current_user', this.currentUser);
-        localStorage.setItem('pdd_current_avatar', this.userAvatar);
-        
-        this.loadUserData();
-        this.onLoginSuccess();
+        this.authSource = 'google';
+        // Используем email как ID (заменяем точки на запятые, т.к. Firebase не любит точки в путях)
+        this.remoteId = 'google_' + (payload.email.replace(/\./g, ',').replace(/@/g, '_at_'));
+
+        this.saveSession();
+        this.loadUserData().then(() => this.onLoginSuccess());
     },
 
     decodeJwt(token) {
-        // Простой декодер JWT без внешних библиотек
         try {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-            return JSON.parse(jsonPayload);
+            return JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
         } catch (e) { return {}; }
+    },
+
+    // --- AUTH SYSTEM (Local) ---
+    performAuth() {
+        const loginInput = document.getElementById('auth-login').value.trim();
+        const passInput = document.getElementById('auth-pass').value.trim();
+        if (!loginInput || !passInput) return alert("Введите логин и пароль");
+
+        if (this.authMode === 'register') this.registerLocal(loginInput, passInput);
+        else this.loginLocal(loginInput, passInput);
+    },
+
+    registerLocal(login, pass) {
+        let users = JSON.parse(localStorage.getItem('pdd_users_db') || '{}');
+        if (users[login]) return alert("Пользователь уже существует");
+        users[login] = pass; 
+        localStorage.setItem('pdd_users_db', JSON.stringify(users));
+        this.loginLocal(login, pass);
+    },
+
+    loginLocal(login, pass) {
+        let users = JSON.parse(localStorage.getItem('pdd_users_db') || '{}');
+        if (users[login] === pass) {
+            this.currentUser = login;
+            this.userAvatar = null;
+            this.authSource = 'local';
+            this.remoteId = null; // Локальный профиль не синхронизируется
+            
+            this.saveSession();
+            this.loadUserData().then(() => this.onLoginSuccess());
+        } else {
+            alert("Неверный логин или пароль");
+        }
+    },
+
+    saveSession() {
+        localStorage.setItem('pdd_current_user', this.currentUser);
+        localStorage.setItem('pdd_auth_source', this.authSource);
+        if (this.userAvatar) localStorage.setItem('pdd_current_avatar', this.userAvatar);
+        if (this.remoteId) localStorage.setItem('pdd_remote_id', this.remoteId);
     },
 
     toggleAuthMode() {
         this.authMode = this.authMode === 'login' ? 'register' : 'login';
         document.getElementById('auth-title').innerText = this.authMode === 'login' ? 'Вход в профиль' : 'Регистрация';
         document.getElementById('auth-toggle-text').innerText = this.authMode === 'login' ? 'Нет аккаунта?' : 'Есть аккаунт?';
-        const btn = document.querySelector('.auth-footer button');
-        btn.innerText = this.authMode === 'login' ? 'Зарегистрироваться' : 'Войти';
+        document.querySelector('.auth-footer button').innerText = this.authMode === 'login' ? 'Зарегистрироваться' : 'Войти';
         document.querySelector('.auth-form button').innerText = this.authMode === 'login' ? 'Войти' : 'Создать аккаунт';
-    },
-
-    performAuth() {
-        const loginInput = document.getElementById('auth-login').value.trim();
-        const passInput = document.getElementById('auth-pass').value.trim();
-
-        if (!loginInput || !passInput) {
-            alert("Введите логин и пароль");
-            return;
-        }
-
-        if (this.authMode === 'register') {
-            this.register(loginInput, passInput);
-        } else {
-            this.login(loginInput, passInput);
-        }
-    },
-
-    register(login, pass) {
-        let users = JSON.parse(localStorage.getItem('pdd_users_db') || '{}');
-        if (users[login]) {
-            alert("Пользователь уже существует");
-            return;
-        }
-        users[login] = pass; 
-        localStorage.setItem('pdd_users_db', JSON.stringify(users));
-        this.login(login, pass);
-    },
-
-    login(login, pass) {
-        let users = JSON.parse(localStorage.getItem('pdd_users_db') || '{}');
-        if (users[login] === pass) {
-            this.currentUser = login;
-            this.userAvatar = null; // Нет аватарки у локального
-            localStorage.setItem('pdd_current_user', login);
-            localStorage.removeItem('pdd_current_avatar');
-            this.loadUserData();
-            this.onLoginSuccess();
-        } else {
-            alert("Неверный логин или пароль");
-        }
     },
 
     onLoginSuccess() {
         this.renderHeaderUser();
-        // Показываем хедер
-        document.getElementById('main-header').style.display = 'flex'; // 'flex', т.к. в CSS он flex
+        document.getElementById('main-header').style.display = 'flex'; 
         this.navigate('tickets');
     },
 
     logout() {
         this.currentUser = null;
         this.userAvatar = null;
-        this.userData = { mistakes: [], marathon: {}, examStats: { passed: 0, failed: 0, total: 0 }, ticketsSolved: 0 };
+        this.remoteId = null;
+        this.authSource = 'local';
+        this.userData = this.resetUserData();
+        
         localStorage.removeItem('pdd_current_user');
         localStorage.removeItem('pdd_current_avatar');
+        localStorage.removeItem('pdd_auth_source');
+        localStorage.removeItem('pdd_remote_id');
         
-        // Скрываем хедер
         document.getElementById('main-header').style.display = 'none';
-        
         this.navigate('auth');
-        // Переинициализация кнопки Google (иногда требуется)
         setTimeout(() => this.initGoogleAuth(), 100);
-    },
-
-    loadUserData() {
-        if (!this.currentUser) return;
-        const data = localStorage.getItem(`pdd_data_${this.currentUser}`);
-        if (data) {
-            this.userData = JSON.parse(data);
-        } else {
-            this.userData = { mistakes: [], marathon: {}, examStats: { passed: 0, failed: 0, total: 0 }, ticketsSolved: 0 };
-            this.saveUserData();
-        }
-    },
-
-    saveUserData() {
-        if (!this.currentUser) return;
-        localStorage.setItem(`pdd_data_${this.currentUser}`, JSON.stringify(this.userData));
     },
 
     // --- UI HELPERS ---
     renderHeaderUser() {
         const nameEl = document.getElementById('header-username');
         const avatarEl = document.getElementById('header-avatar');
-        
         if (this.currentUser) {
-            nameEl.innerText = this.currentUser.split(' ')[0]; // Только имя
-            if (this.userAvatar) {
-                avatarEl.innerHTML = `<img src="${this.userAvatar}" alt="ava">`;
-            } else {
-                avatarEl.innerHTML = '👤';
-            }
+            nameEl.innerText = this.currentUser.split(' ')[0];
+            avatarEl.innerHTML = this.userAvatar ? `<img src="${this.userAvatar}" alt="ava">` : '👤';
         }
     },
 
@@ -210,13 +300,14 @@ const app = {
 
     renderProfileStats() {
         document.getElementById('profile-name').innerText = this.currentUser;
-        const bigAvatar = document.getElementById('profile-avatar-large');
         
-        if (this.userAvatar) {
-            bigAvatar.innerHTML = `<img src="${this.userAvatar}">`;
-        } else {
-            bigAvatar.innerHTML = '👤';
-        }
+        const syncText = document.getElementById('profile-sync-status');
+        if (this.authSource === 'vk') syncText.innerText = "Синхронизация VK активна ✅";
+        else if (this.authSource === 'google') syncText.innerText = "Синхронизация Google активна ✅";
+        else syncText.innerText = "Локальный профиль (нет синхронизации) ⚠️";
+        
+        const bigAvatar = document.getElementById('profile-avatar-large');
+        bigAvatar.innerHTML = this.userAvatar ? `<img src="${this.userAvatar}">` : '👤';
 
         document.getElementById('stat-tickets').innerText = this.userData.ticketsSolved || 0;
         document.getElementById('stat-mistakes').innerText = (this.userData.mistakes || []).length;
@@ -232,10 +323,7 @@ const app = {
 
     // --- NAVIGATION ---
     navigate(view) {
-        // Если не залогинен и пытается уйти с auth -> блокируем
-        if (!this.currentUser && view !== 'auth') {
-            view = 'auth';
-        }
+        if (!this.currentUser && view !== 'auth') view = 'auth';
 
         const isExamActive = this.state.mode === 'exam' && this.state.timeLeft > 0;
         const isExamViews = view === 'exam-dashboard' || view === 'exam-start' || view === 'result';
@@ -255,7 +343,6 @@ const app = {
         if (this.state.mode === 'range' && view === 'questions') btnView = 'ranges';
         if (this.state.mode === 'mistakes' && view === 'questions') btnView = 'mistakes';
 
-        // Подсветка кнопки навигации (только если не auth и не profile)
         if (view !== 'auth' && view !== 'profile') {
             const btn = document.querySelector(`.nav-btn[onclick="app.navigate('${btnView}')"]`);
             if (btn) btn.classList.add('active');
@@ -916,6 +1003,5 @@ const app = {
                 .replace(/\n/g, '<br>'); 
     }
 };
-
 
 app.init();
