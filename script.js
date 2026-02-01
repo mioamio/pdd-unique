@@ -10,9 +10,7 @@ const app = {
     },
     authMode: 'login',
     
-    // ВАЖНО: ЗАМЕНИТЕ ЭТОТ ID НА СВОЙ ИЗ GOOGLE CLOUD CONSOLE
-    // Если оставить пустым или неверным, кнопка Google может не отобразиться или выдавать ошибку.
-    GOOGLE_CLIENT_ID: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", 
+    GOOGLE_CLIENT_ID: "1096394669375-00j6f5olv616q08fcp6uju2pr091sa5r.apps.googleusercontent.com", 
 
     state: {
         mode: 'training',
@@ -918,5 +916,6 @@ const app = {
                 .replace(/\n/g, '<br>'); 
     }
 };
+
 
 app.init();
