@@ -1,9 +1,10 @@
 const app = {
     indexData: null,
     currentUser: null,
+    pendingView: null,
     userAvatar: null,
-    authSource: 'local', // 'local', 'google', 'vk'
-    remoteId: null,      // ID для синхронизации с БД
+    authSource: 'local',
+    remoteId: null,
     userData: {
         mistakes: [],
         marathon: {}, 
@@ -321,7 +322,6 @@ const app = {
         document.getElementById('stat-marathon').innerText = `${marathonDone}/800`;
     },
 
-    // --- NAVIGATION ---
     navigate(view) {
         if (!this.currentUser && view !== 'auth') view = 'auth';
 
@@ -329,8 +329,9 @@ const app = {
         const isExamViews = view === 'exam-dashboard' || view === 'exam-start' || view === 'result';
         
         if (isExamActive && !isExamViews) {
-            if (!confirm("Выйти из экзамена? Результат будет потерян.")) return;
-            this.stopTimer();
+            this.pendingView = view; // Запоминаем, куда хотел юзер
+            document.getElementById('confirm-modal').classList.add('open'); // Открываем нашу красивую модалку
+            return; // Прерываем переход
         }
 
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -356,10 +357,8 @@ const app = {
     },
 
     goBack() {
-        if (this.state.mode === 'exam') {
-            if(!confirm("Завершить экзамен?")) return;
-            this.stopTimer();
-            this.navigate('exam-start');
+        if (this.state.mode === 'exam' && this.state.timeLeft > 0) {
+            this.navigate('exam-start'); 
         } else if (this.state.mode === 'range') {
             this.navigate('ranges');
         } else if (this.state.mode === 'mistakes') {
@@ -367,7 +366,9 @@ const app = {
         } else {
             this.navigate('tickets');
         }
-        this.state.questions = [];
+        if (this.state.mode !== 'exam') {
+            this.state.questions = [];
+        }
     },
 
     async getAllQuestions() {
@@ -993,6 +994,25 @@ const app = {
         });
     },
 
+    confirmExit() {
+        this.stopTimer();
+        this.state.mode = 'idle'; 
+        this.state.timeLeft = 0;
+        
+        document.getElementById('confirm-modal').classList.remove('open');
+        
+        if (this.pendingView) {
+            this.navigate(this.pendingView);
+            this.pendingView = null;
+        } else {
+            this.navigate('tickets'); // На случай сбоя
+        }
+    },
+
+    cancelExit() {
+        document.getElementById('confirm-modal').classList.remove('open');
+        this.pendingView = null;
+    },
     renderSummary(durationMs, errors) {
         let m = Math.floor(durationMs / 60000);
         let s = Math.floor((durationMs % 60000) / 1000);
@@ -1024,6 +1044,8 @@ const app = {
                 .replace(/\[(.*?)\]\(.*?\)/g, '<b>$1</b>') 
                 .replace(/\n/g, '<br>'); 
     }
+    
 };
+
 
 app.init();
