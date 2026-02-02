@@ -2,8 +2,9 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ПДД Тесты</title>
+    <title>pdd unique</title>
     
     <!-- Подключение библиотеки Google Auth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -16,14 +17,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Скрываем контент до полной загрузки JS, чтобы не было мигания */
-        body:not(.app-loaded) #main-container, 
-        body:not(.app-loaded) #main-header,
-        body:not(.app-loaded) .mobile-bottom-nav {
-            visibility: hidden; 
-        }
-    </style>
 </head>
 <body>
 
@@ -47,8 +40,8 @@
     <main>
         <div class="container" id="main-container">
 
-            <!-- 0. АВТОРИЗАЦИЯ (убран класс active, js сам включит) -->
-            <section id="view-auth" class="view-section">
+            <!-- 0. АВТОРИЗАЦИЯ -->
+            <section id="view-auth" class="view-section active">
                 <div class="auth-card">
                     <div class="soft-icon profile">
                         <div class="shape-1"></div>
@@ -59,10 +52,14 @@
                     
                     <!-- Соцсети -->
                     <div class="social-auth">
+                        <!-- Кнопка VK -->
                         <button class="vk-btn" onclick="app.loginVK()">
                             <span style="font-weight:bold; margin-right:8px; font-family: sans-serif;">VK</span> Войти через ВКонтакте
                         </button>
+                        
                         <div style="height: 10px;"></div>
+
+                        <!-- Контейнер для кнопки Google -->
                         <div id="google_btn_container"></div>
                     </div>
 
@@ -232,7 +229,7 @@
                 </div>
             </section>
 
-            <!-- 7. ВОПРОСЫ (РЕЖИМ ОБУЧЕНИЯ) -->
+            <!-- 7. ВОПРОСЫ -->
             <section id="view-questions" class="view-section">
                 <div id="marathon-stats" class="marathon-stats-bar" style="display:none;">
                     <div class="stat-item">
@@ -250,14 +247,9 @@
                 </div>
                 <div id="pagination" class="pagination-container"></div>
                 <div id="marathon-pagination" class="marathon-grid" style="display:none;"></div>
-                
-                <!-- Контейнер вопроса (сюда будем вешать свайп) -->
-                <div id="current-question-container" style="touch-action: pan-y;"></div>
-                
+                <div id="current-question-container"></div>
                 <div class="nav-controls">
                     <button onclick="app.goBack()">Меню</button>
-                    <!-- Кнопка Назад для удобства -->
-                    <button id="btn-prev" class="secondary-btn-dark" style="display:none; margin-left:10px;" onclick="app.prevQuestion()">⬅</button> 
                     <button id="btn-next" class="primary-btn" onclick="app.nextQuestion()">Далее ➜</button>
                     <button id="btn-finish-train" class="primary-btn" onclick="app.finishTraining()" style="display:none;">Завершить</button>
                 </div>
@@ -286,26 +278,6 @@
 
         </div>
     </main>
-
-    <!-- НОВАЯ НИЖНЯЯ НАВИГАЦИЯ (Только для мобильных) -->
-    <nav class="mobile-bottom-nav">
-        <div class="nav-item" onclick="app.navigate('tickets')">
-            <span class="nav-icon">🎫</span>
-            <span>Билеты</span>
-        </div>
-        <div class="nav-item" onclick="app.navigate('marathon-intro')">
-            <span class="nav-icon">🏃</span>
-            <span>Марафон</span>
-        </div>
-        <div class="nav-item" onclick="app.navigate('exam-start')">
-            <span class="nav-icon">⏱️</span>
-            <span>Экзамен</span>
-        </div>
-        <div class="nav-item" onclick="app.handleProfileClick()">
-            <span class="nav-icon">👤</span>
-            <span>Профиль</span>
-        </div>
-    </nav>
 
     <!-- МОДАЛКИ -->
     <div id="exam-modal" class="modal-overlay">
