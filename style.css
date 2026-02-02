@@ -17,26 +17,26 @@
     --modal-dark-bg: #212936;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: Arial, sans-serif;
     /* Базовые настройки фона для ПК (фиксированный) */
     background: url('colors.png') no-repeat center center fixed;
     background-size: cover;
     background-color: var(--color-canvas-subtle);
     color: #24292e;
     margin: 0; padding: 0; 
-    min-height: 100vh; 
+    min-height: 100vh; /* Используем min-height вместо height для прокрутки фона */
     display: flex; flex-direction: column;
-    overflow-x: hidden; 
+    overflow-x: hidden; /* Скрываем горизонтальный скролл */
 }
 
 /* --- BUTTONS --- */
 button {
   appearance: none; background-color: #fafbfc; border: 1px solid rgba(27, 31, 35, 0.15);
   border-radius: 6px; box-sizing: border-box; color: #24292e; cursor: pointer;
-  display: inline-block; font-family: inherit; font-size: 14px;
+  display: inline-block; font-family: Arial, sans-serif; font-size: 14px;
   font-weight: 500; line-height: 20px; padding: 6px 16px; transition: 0.2s;
 }
 button:hover { background-color: #f3f4f6; }
@@ -173,7 +173,7 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
 .grid-simple .exam-card .exam-card-body { color: #333; background: #fff; }
 
 .question-card { background: #fff; padding: 20px; border-radius: 6px; border: 1px solid #d0d7de; text-align: center; }
-.q-text { font-size:18px; font-weight:600; margin-bottom:15px; line-height: 1.4; }
+.q-text { font-size:18px; font-weight:600; margin-bottom:15px; }
 .q-image { max-width: 100%; border-radius: 6px; margin: 15px auto; display: block; }
 .answers-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .answer-btn { width: 100%; height: auto; display: flex; align-items: flex-start; margin-bottom: 8px; text-align: left; justify-content: flex-start; }
@@ -190,10 +190,8 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
 .marathon-btn.wrong { background-color: var(--color-danger-bg); color: var(--color-danger-fg); }
 
 .pagination-container { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 20px; max-height: 120px; overflow-y: auto; padding: 5px; background: #fff; border-radius: 6px; border: 1px solid #d0d7de; }
-.page-btn { width: 32px; height: 32px; padding: 0; font-size: 12px; display: flex; justify-content: center; align-items: center; border-radius: 50%; border: 1px solid #ddd; background: #f6f8fa; }
-.page-btn.current { background-color: #0969da; color: #fff; font-weight: bold; border-color: #0969da; }
-.page-btn.status-correct { background-color: #dafbe1; border-color: #1a7f37; color: #1a7f37; }
-.page-btn.status-wrong { background-color: #ffebe9; border-color: #cf222e; color: #cf222e; }
+.page-btn { width: 32px; height: 32px; padding: 0; font-size: 12px; display: flex; justify-content: center; align-items: center; }
+.page-btn.current { background-color: #edeff2; font-weight: bold; border-color: #24292e; }
 
 .hint-block { display: none; margin-top: 20px; background: #fff8c5; border: 1px solid #d4a72c; padding: 15px; border-radius: 6px; text-align: left; }
 .hint-block.visible { display: block; }
@@ -206,8 +204,6 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
 #exam-modal-question { padding: 20px; overflow-y: auto; font-size: 16px; flex: 1; text-align: center; }
 .dark-footer { padding: 15px; background: #161b22; border-top: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; color: #8b949e; }
 
-/* Mobile Bottom Nav (по умолчанию скрыта) */
-.mobile-bottom-nav { display: none; }
 
 /* ========================================= */
 /* --- 2. MOBILE ADAPTATIONS (MAX 800PX) --- */
@@ -216,28 +212,28 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
 @media (max-width: 800px) {
     /* 2.0. PROFESSIONAL BACKGROUND FIX */
     body {
+        /* Принудительно включаем картинку, перезаписывая любые 'none' */
         background-image: url('colors.png'); 
+        
+        /* 'scroll' - картинка скроллится вместе с контентом (нет дерганий на iOS) */
         background-attachment: scroll; 
+        
+        /* 'cover' - заполняет весь экран, обрезая лишнее, но сохраняя пропорции */
         background-size: cover; 
+        
         background-position: center center;
         background-repeat: no-repeat;
     }
 
-    /* 2.1 Header & Nav - Верхнее меню скрываем (используем нижнее) */
-    header { height: 60px; padding: 0 10px; justify-content: center; }
-    .header-inner { justify-content: center; width: 100%; }
-    .nav-bar { display: none; } /* Скрываем верхние кнопки навигации */
-    
+    /* 2.1 Header & Nav */
+    header { height: 60px; padding: 0 10px; justify-content: space-between; }
+    .header-inner { justify-content: space-between; }
+    .nav-bar { width: calc(100% - 70px); justify-content: flex-start; margin: 0; padding-right: 10px; overflow-x: auto; scrollbar-width: none; }
+    .nav-bar::-webkit-scrollbar { display: none; }
     #header-username { display: none; }
     
     /* 2.2 Layout & Containers */
-    /* Отступ снизу для нижней панели навигации */
-    .container { padding-bottom: 90px; }
-    .view-section { padding-bottom: 20px; }
-    
-    /* Улучшение читаемости на мобильных (кроме экзамена) */
-    #view-questions .q-text { font-size: 20px; }
-    #view-questions .answer-btn { padding: 18px; font-size: 16px; min-height: 60px; align-items: center; }
+    .container { padding-bottom: 70px; }
     
     /* 2.3 Exam Grid (Fix for Mobile Performance) */
     .exam-grid-container { 
@@ -258,24 +254,9 @@ input[type="number"] { background-color: #fafbfc; border: 1px solid rgba(27, 31,
 
     /* 2.5 Touch Improvements */
     button { padding: 12px 16px; touch-action: manipulation; }
-    
+    .answer-btn { padding: 15px; font-size: 15px; }
     .nav-controls { padding-bottom: 20px; }
     
     /* 2.6 Pagination scroll */
-    .pagination-container { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
-    .pagination-container::-webkit-scrollbar { display: none; }
-
-    /* 2.7 НИЖНЯЯ НАВИГАЦИЯ */
-    .mobile-bottom-nav {
-        display: flex; position: fixed; bottom: 0; left: 0; width: 100%;
-        background: #fff; border-top: 1px solid #d0d7de;
-        padding-bottom: env(safe-area-inset-bottom, 10px);
-        height: auto; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-    }
-    .nav-item {
-        flex: 1; text-align: center; padding: 10px 5px; 
-        color: #57606a; cursor: pointer; font-size: 11px;
-    }
-    .nav-item:active { background: #f6f8fa; }
-    .nav-icon { display: block; font-size: 22px; margin-bottom: 3px; }
+    .pagination-container { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; }
 }
