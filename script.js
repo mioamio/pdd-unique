@@ -13,11 +13,6 @@ const app = {
     },
     authMode: 'login',
     
-    // Для свайпа
-    touchStartX: 0,
-    touchEndX: 0,
-    minSwipeDistance: 50,
-    
     // --- КОНФИГУРАЦИЯ ---
     GOOGLE_CLIENT_ID: "1096394669375-00j6f5olv616q08fcp6uju2pr091sa5r.apps.googleusercontent.com",
     
@@ -64,10 +59,7 @@ const app = {
             
             this.initGoogleAuth();
 
-            // 1. Сначала пробуем восстановить сессию вопросов
-            const restored = this.restoreQuestionSession();
-            
-            // 2. Проверка сохраненной сессии пользователя
+            // Проверка сохраненной сессии
             const savedUser = localStorage.getItem('pdd_current_user');
             const savedAvatar = localStorage.getItem('pdd_current_avatar');
             const savedSource = localStorage.getItem('pdd_auth_source');
@@ -81,78 +73,13 @@ const app = {
                 
                 await this.loadUserData();
                 this.onLoginSuccess();
-                
-                // Если восстановили сессию вопросов, показываем их сразу
-                if (restored && this.state.questions.length > 0) {
-                    this.navigate('questions');
-                    this.renderTrainingView();
-                    return;
-                }
             } else {
-                // Если нет пользователя, но есть сессия вопросов - показываем вопросы
-                if (restored && this.state.questions.length > 0) {
-                    this.navigate('questions');
-                    this.renderTrainingView();
-                    return;
-                }
-                // Иначе показываем авторизацию
-                this.navigate('auth');
+                this.navigate('auth'); 
             }
             
             this.setupKeyboard();
-            this.setupSwipe();
             this.renderMenu();
-            this.updateMobileNavUser();
-        } catch (e) { 
-            console.error("Init Error:", e);
-            this.navigate('auth');
-        }
-    },
-
-    // --- СОХРАНЕНИЕ И ВОССТАНОВЛЕНИЕ СЕССИИ ---
-    saveQuestionSession() {
-        if (this.state.questions.length > 0 && this.state.mode !== 'exam') {
-            const sessionData = {
-                mode: this.state.mode,
-                questions: this.state.questions,
-                currentIndex: this.state.currentIndex,
-                answers: this.state.answers,
-                startTime: this.state.startTime,
-                wrongAnswersList: this.state.wrongAnswersList,
-                timestamp: Date.now()
-            };
-            
-            localStorage.setItem('pdd_question_session', JSON.stringify(sessionData));
-        }
-    },
-
-    restoreQuestionSession() {
-        try {
-            const savedSession = localStorage.getItem('pdd_question_session');
-            if (savedSession) {
-                const session = JSON.parse(savedSession);
-                const hourAgo = Date.now() - (60 * 60 * 1000);
-                
-                if (session.timestamp > hourAgo) {
-                    this.state.mode = session.mode;
-                    this.state.questions = session.questions;
-                    this.state.currentIndex = session.currentIndex;
-                    this.state.answers = session.answers;
-                    this.state.startTime = session.startTime || Date.now();
-                    this.state.wrongAnswersList = session.wrongAnswersList || [];
-                    return true;
-                } else {
-                    localStorage.removeItem('pdd_question_session');
-                }
-            }
-        } catch (e) {
-            localStorage.removeItem('pdd_question_session');
-        }
-        return false;
-    },
-
-    clearQuestionSession() {
-        localStorage.removeItem('pdd_question_session');
+        } catch (e) { console.error("Init Error:", e); }
     },
 
     // --- DB SYNC LOGIC ---
@@ -170,9 +97,13 @@ const app = {
                 const snapshot = await this.db.ref('users/' + this.remoteId).get();
                 if (snapshot.exists()) {
                     const remoteData = snapshot.val();
+                    // Можно добавить логику слияния, но пока просто берем удаленные, если они новее/полнее
+                    // Для простоты: удаленные данные перетирают локальные при входе
                     this.userData = remoteData;
+                    // Обновляем локальную копию
                     this.saveLocal(); 
                 } else {
+                    // Если в облаке пусто, а локально есть - сохраняем в облако
                     if (localData) {
                         this.userData = localData;
                         this.saveUserData();
@@ -182,6 +113,7 @@ const app = {
                 }
             } catch (e) {
                 console.error("Firebase Load Error:", e);
+                // Если ошибка сети, используем локальные
                 this.userData = localData || this.resetUserData();
             }
         } else {
@@ -216,6 +148,7 @@ const app = {
         localStorage.setItem(`pdd_data_${this.currentUser}`, JSON.stringify(this.userData));
     },
 
+
     // --- AUTH SYSTEM (VK) ---
     loginVK() {
         if (!window.VK) {
@@ -227,7 +160,9 @@ const app = {
                 console.log("VK Session:", response.session);
                 const user = response.session.user;
                 
+                // Формируем данные
                 this.currentUser = (user.first_name + " " + user.last_name).trim();
+                // VK Open API не всегда отдает фото сразу, используем заглушку или ID
                 this.userAvatar = `https://vk.com/images/camera_200.png`; 
                 this.authSource = 'vk';
                 this.remoteId = 'vk_' + user.id;
@@ -237,7 +172,7 @@ const app = {
             } else {
                 alert('Не удалось войти через VK');
             }
-        }, 4);
+        }, 4); // Права доступа (4 = фото... хотя для Open API это игнорируется часто)
     },
 
     // --- AUTH SYSTEM (Google) ---
@@ -259,6 +194,7 @@ const app = {
         this.currentUser = payload.name || payload.email;
         this.userAvatar = payload.picture;
         this.authSource = 'google';
+        // Используем email как ID (заменяем точки на запятые, т.к. Firebase не любит точки в путях)
         this.remoteId = 'google_' + (payload.email.replace(/\./g, ',').replace(/@/g, '_at_'));
 
         this.saveSession();
@@ -297,7 +233,7 @@ const app = {
             this.currentUser = login;
             this.userAvatar = null;
             this.authSource = 'local';
-            this.remoteId = null;
+            this.remoteId = null; // Локальный профиль не синхронизируется
             
             this.saveSession();
             this.loadUserData().then(() => this.onLoginSuccess());
@@ -311,7 +247,6 @@ const app = {
         localStorage.setItem('pdd_auth_source', this.authSource);
         if (this.userAvatar) localStorage.setItem('pdd_current_avatar', this.userAvatar);
         if (this.remoteId) localStorage.setItem('pdd_remote_id', this.remoteId);
-        this.updateMobileNavUser();
     },
 
     toggleAuthMode() {
@@ -324,7 +259,6 @@ const app = {
 
     onLoginSuccess() {
         this.renderHeaderUser();
-        this.updateMobileNavUser();
         document.getElementById('main-header').style.display = 'flex'; 
         this.navigate('tickets');
     },
@@ -335,7 +269,6 @@ const app = {
         this.remoteId = null;
         this.authSource = 'local';
         this.userData = this.resetUserData();
-        this.clearQuestionSession();
         
         localStorage.removeItem('pdd_current_user');
         localStorage.removeItem('pdd_current_avatar');
@@ -345,31 +278,6 @@ const app = {
         document.getElementById('main-header').style.display = 'none';
         this.navigate('auth');
         setTimeout(() => this.initGoogleAuth(), 100);
-    },
-
-    // --- МОБИЛЬНАЯ НАВИГАЦИЯ ---
-    openMobileNav() {
-        document.getElementById('mobile-nav').classList.add('active');
-        document.getElementById('mobile-nav-overlay').classList.add('active');
-        document.body.style.overflow = 'hidden';
-    },
-
-    closeMobileNav() {
-        document.getElementById('mobile-nav').classList.remove('active');
-        document.getElementById('mobile-nav-overlay').classList.remove('active');
-        document.body.style.overflow = '';
-    },
-
-    updateMobileNavUser() {
-        const nameEl = document.getElementById('mobile-username');
-        const avatarEl = document.getElementById('mobile-avatar');
-        if (this.currentUser) {
-            nameEl.innerText = this.currentUser.split(' ')[0];
-            avatarEl.innerHTML = this.userAvatar ? `<img src="${this.userAvatar}" alt="ava">` : '👤';
-        } else {
-            nameEl.innerText = 'Профиль';
-            avatarEl.innerHTML = '👤';
-        }
     },
 
     // --- UI HELPERS ---
@@ -389,16 +297,15 @@ const app = {
         } else {
             this.navigate('auth');
         }
-        this.closeMobileNav();
     },
 
     renderProfileStats() {
         document.getElementById('profile-name').innerText = this.currentUser;
         
         const syncText = document.getElementById('profile-sync-status');
-        if (this.authSource === 'vk') syncText.innerText = "Синхронизация VK активна";
-        else if (this.authSource === 'google') syncText.innerText = "Синхронизация Google активна";
-        else syncText.innerText = "Локальный профиль (нет синхронизации)";
+        if (this.authSource === 'vk') syncText.innerText = "Синхронизация VK активна ✅";
+        else if (this.authSource === 'google') syncText.innerText = "Синхронизация Google активна ✅";
+        else syncText.innerText = "Локальный профиль (нет синхронизации) ⚠️";
         
         const bigAvatar = document.getElementById('profile-avatar-large');
         bigAvatar.innerHTML = this.userAvatar ? `<img src="${this.userAvatar}">` : '👤';
@@ -416,50 +323,37 @@ const app = {
     },
 
     navigate(view) {
-        // Сохраняем сессию вопросов при уходе
-        if (view !== 'questions' && this.state.questions.length > 0) {
-            this.saveQuestionSession();
-        }
-
-        if (!this.currentUser && view !== 'auth' && view !== 'questions') view = 'auth';
+        if (!this.currentUser && view !== 'auth') view = 'auth';
 
         const isExamActive = this.state.mode === 'exam' && this.state.timeLeft > 0;
         const isExamViews = view === 'exam-dashboard' || view === 'exam-start' || view === 'result';
         
         if (isExamActive && !isExamViews) {
-            this.pendingView = view;
-            document.getElementById('confirm-modal').classList.add('open');
-            return;
+            this.pendingView = view; // Запоминаем, куда хотел юзер
+            document.getElementById('confirm-modal').classList.add('open'); // Открываем нашу красивую модалку
+            return; // Прерываем переход
         }
 
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
         
-        // Обновляем мобильное меню
-        let menuView = view;
-        if (['questions', 'summary'].includes(view)) {
-            if (this.state.mode === 'range') menuView = 'ranges';
-            else if (this.state.mode === 'mistakes') menuView = 'mistakes';
-            else if (this.state.mode === 'marathon') menuView = 'marathon-intro';
-            else menuView = 'tickets';
+        let btnView = view;
+        if (['marathon-intro', 'exam-start', 'profile', 'auth'].includes(view)) btnView = view;
+        if (view === 'exam-dashboard') btnView = 'exam-start';
+        if (view === 'questions') btnView = 'tickets'; 
+        if (this.state.mode === 'range' && view === 'questions') btnView = 'ranges';
+        if (this.state.mode === 'mistakes' && view === 'questions') btnView = 'mistakes';
+
+        if (view !== 'auth' && view !== 'profile') {
+            const btn = document.querySelector(`.nav-btn[onclick="app.navigate('${btnView}')"]`);
+            if (btn) btn.classList.add('active');
         }
-        
-        const mobileBtn = document.querySelector(`.mobile-nav-item[onclick*="'${menuView}'"]`);
-        if (mobileBtn) mobileBtn.classList.add('active');
 
         const targetId = `view-${view}`;
         const el = document.getElementById(targetId);
-        if (el) {
-            el.classList.add('active');
-            setTimeout(() => {
-                el.scrollTop = 0;
-            }, 50);
-        }
+        if (el) el.classList.add('active');
         
         if (view === 'mistakes') this.renderMistakesMenu();
-        
-        this.closeMobileNav();
     },
 
     goBack() {
@@ -474,72 +368,6 @@ const app = {
         }
         if (this.state.mode !== 'exam') {
             this.state.questions = [];
-            this.clearQuestionSession();
-        }
-    },
-
-    prevQuestion() {
-        if (this.state.currentIndex > 0) {
-            this.state.currentIndex--;
-            this.renderCurrentQuestion();
-            this.updateNavButtons();
-        }
-    },
-
-    nextQuestion() {
-        if (this.state.currentIndex < this.state.questions.length - 1) {
-            this.state.currentIndex++;
-            this.renderCurrentQuestion();
-            this.updateNavButtons();
-        }
-    },
-
-    updateNavButtons() {
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
-        const btnFinish = document.getElementById('btn-finish-train');
-        
-        if (btnPrev) {
-            btnPrev.style.display = this.state.currentIndex > 0 ? 'block' : 'none';
-        }
-        
-        if (btnNext && btnFinish) {
-            if (this.state.currentIndex < this.state.questions.length - 1) {
-                btnNext.style.display = 'block';
-                btnFinish.style.display = 'none';
-            } else {
-                btnNext.style.display = 'none';
-                btnFinish.style.display = 'block';
-            }
-        }
-    },
-
-    // --- SWIPE GESTURES ---
-    setupSwipe() {
-        const swipeContainer = document.getElementById('swipe-container');
-        if (!swipeContainer) return;
-
-        swipeContainer.addEventListener('touchstart', (e) => {
-            this.touchStartX = e.changedTouches[0].screenX;
-        }, { passive: true });
-
-        swipeContainer.addEventListener('touchend', (e) => {
-            this.touchEndX = e.changedTouches[0].screenX;
-            this.handleSwipe();
-        }, { passive: true });
-    },
-
-    handleSwipe() {
-        const swipeDistance = this.touchEndX - this.touchStartX;
-        
-        if (Math.abs(swipeDistance) < this.minSwipeDistance) return;
-        
-        if (swipeDistance > 0) {
-            // Свайп вправо → предыдущий вопрос
-            this.prevQuestion();
-        } else {
-            // Свайп влево → следующий вопрос
-            this.nextQuestion();
         }
     },
 
@@ -627,7 +455,6 @@ const app = {
         this.state.wrongAnswersList = [];
         this.state.startTime = Date.now();
         this.stopTimer();
-        this.clearQuestionSession();
     },
 
     renderTrainingView() {
@@ -642,12 +469,7 @@ const app = {
             this.renderMarathonGrid();
             this.updateMarathonStats();
         }
-        
         this.renderCurrentQuestion();
-        this.updateNavButtons();
-        
-        // Сохраняем сессию
-        this.saveQuestionSession();
     },
 
     renderMarathonGrid() {
@@ -691,6 +513,7 @@ const app = {
         const { questions, currentIndex, answers, mode } = this.state;
         const q = questions[currentIndex];
         
+        // 1. Логика для Марафона (скролл к кнопке номера)
         if (mode === 'marathon') {
             document.querySelectorAll('.marathon-btn.active').forEach(b => b.classList.remove('active'));
             const curBtn = document.getElementById(`m-btn-${currentIndex}`);
@@ -699,6 +522,7 @@ const app = {
                 curBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         } else {
+            // 2. Логика для Обычного режима (пагинация)
             const pgContainer = document.getElementById('pagination');
             pgContainer.innerHTML = questions.map((_, i) => {
                 let cls = '';
@@ -708,6 +532,7 @@ const app = {
                 return `<button class="page-btn ${cls}" onclick="app.jumpTo(${i})">${i+1}</button>`;
             }).join('');
 
+            // Автоскролл пагинации
             const currentBtn = pgContainer.children[currentIndex];
             if(currentBtn) {
                 setTimeout(() => {
@@ -716,18 +541,20 @@ const app = {
             }
         }
 
-        const container = document.getElementById('current-question-card');
+        const container = document.getElementById('current-question-container');
         if (!q) return;
 
         const userAnswer = answers[currentIndex];
         const isAnswered = userAnswer !== undefined;
 
+        // 3. Формирование картинки (с Lazy Loading)
         let imgHTML = '';
         if (q.realUrl && q.realUrl !== 'no_image') {
             const fName = `${this.pad(q.biletNumber)}${this.pad(q.questNumber)}.jpg`;
             imgHTML = `<img src="image/${fName}" loading="lazy" class="q-image" onerror="this.style.display='none'">`;
         }
 
+        // 4. Формирование вариантов ответа
         const answersHTML = q.v.map((text, idx) => {
             if (!text) return '';
             const ansNum = idx + 1;
@@ -742,6 +569,18 @@ const app = {
             </button></li>`;
         }).join('');
 
+        const hintButton = `
+            <div style="text-align: center; margin-top: 15px;">
+                <button style="border:none; background:none; text-decoration:underline; color:#0969da; cursor:pointer; font-size:14px;" onclick="app.toggleHint()">💡 Показать подсказку</button>
+            </div>
+        `;
+
+        const hintContent = `
+            <div id="hint-box" class="hint-block ${isAnswered && userAnswer !== q.otvet ? 'visible' : ''}">
+                <strong>Пояснение:</strong><br>${this.formatComment(q.comments)}
+            </div>`;
+
+        // 5. Вывод HTML на страницу
         container.innerHTML = `
             <div class="question-card">
                 <div class="q-meta" style="font-size: 13px; color: #777; margin-bottom: 8px; font-weight:500;">
@@ -750,20 +589,34 @@ const app = {
                 <div class="q-text">${q.quest}</div>
                 ${imgHTML}
                 <ul class="answers-list">${answersHTML}</ul>
-                ${isAnswered && userAnswer !== q.otvet ? `
-                    <div class="hint-block visible">
-                        <strong>Пояснение:</strong><br>${this.formatComment(q.comments)}
-                    </div>
-                ` : ''}
+                ${hintButton}
+                ${hintContent}
             </div>
         `;
 
-        this.updateNavButtons();
+        // 6. Кнопки "Далее" / "Завершить"
+        const btnNext = document.getElementById('btn-next');
+        const btnFinish = document.getElementById('btn-finish-train');
         
-        // Плавный скролл наверх
-        setTimeout(() => {
-            container.scrollTop = 0;
-        }, 100);
+        if (currentIndex < questions.length - 1) {
+            btnNext.style.display = 'block';
+            btnFinish.style.display = 'none';
+        } else {
+            btnNext.style.display = 'none';
+            btnFinish.style.display = 'block';
+        }
+        
+        if (isAnswered) {
+        } else {
+             document.querySelector('main').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+    },
+    
+
+    toggleHint() {
+        const box = document.getElementById('hint-box');
+        if (box) box.classList.toggle('visible');
     },
 
     handleTrainingAnswer(idx) {
@@ -777,6 +630,8 @@ const app = {
         if (!isCorrect) {
             this.state.wrongAnswersList.push(questions[currentIndex]);
             this.addToMistakes(questions[currentIndex]);
+            const box = document.getElementById('hint-box');
+            if(box) box.classList.add('visible');
         }
 
         if (mode === 'training') {
@@ -791,19 +646,22 @@ const app = {
             const gridBtn = document.getElementById(`m-btn-${currentIndex}`);
             if (gridBtn) gridBtn.classList.add(isCorrect ? 'correct' : 'wrong');
         }
-        
         this.renderCurrentQuestion();
-        this.saveQuestionSession();
     },
 
+    nextQuestion() {
+        if (this.state.currentIndex < this.state.questions.length - 1) {
+            this.state.currentIndex++;
+            this.renderCurrentQuestion();
+        }
+    },
+    
     jumpTo(idx) {
         this.state.currentIndex = idx;
         this.renderCurrentQuestion();
-        this.updateNavButtons();
     },
 
     finishTraining() {
-        this.clearQuestionSession();
         this.navigate('summary');
         const duration = Date.now() - this.state.startTime;
         this.renderSummary(duration, this.state.wrongAnswersList);
@@ -840,16 +698,20 @@ const app = {
             const isAnswered = answers[idx] !== undefined;
             const cls = isAnswered ? 'answered' : '';
             
+            let imgUrl = 'style="display:none"';
             let imgTag = '';
             
+            // Оптимизация: показываем заглушку цвета, пока грузится картинка
             if (q.realUrl && q.realUrl !== 'no_image') {
                 const fName = `${this.pad(q.biletNumber)}${this.pad(q.questNumber)}.jpg`;
+                // loading="lazy" - ключевое для производительности на мобильных
                 imgTag = `<img src="image/${fName}" loading="lazy" class="exam-card-img" onerror="this.style.display='none'">`;
             }
 
             let label = idx + 1;
             if (idx >= 20) label = `+${idx - 19}`;
 
+            // Если картинки нет, рендерим текст внутри карточки
             return `
                 <div class="exam-card ${cls}" onclick="app.openExamQuestion(${idx})">
                     <span class="exam-card-num">${label}</span>
@@ -968,7 +830,7 @@ const app = {
         if (errCount > 0) {
             await this.addExtraQuestions(blocks);
         } else {
-            this.finishExam(true, "Сдано без ошибок!");
+            this.finishExam(true, "Сдано без ошибок! 🎉");
         }
     },
 
@@ -1039,6 +901,7 @@ const app = {
             this.state.wrongAnswersList.forEach(q => this.addToMistakes(q));
         }
 
+        // Обновляем статистику экзамена
         if (this.userData.examStats) {
             this.userData.examStats.total++;
             if (success) this.userData.examStats.passed++;
@@ -1142,7 +1005,7 @@ const app = {
             this.navigate(this.pendingView);
             this.pendingView = null;
         } else {
-            this.navigate('tickets');
+            this.navigate('tickets'); // На случай сбоя
         }
     },
 
@@ -1150,7 +1013,6 @@ const app = {
         document.getElementById('confirm-modal').classList.remove('open');
         this.pendingView = null;
     },
-    
     renderSummary(durationMs, errors) {
         let m = Math.floor(durationMs / 60000);
         let s = Math.floor((durationMs % 60000) / 1000);
