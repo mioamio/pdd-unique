@@ -2,38 +2,73 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>PDD Premium</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title>ПДД Экзамен</title>
     
-    <!-- Google Auth -->
+    <!-- Подключение библиотеки Google Auth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <!-- VK Open API -->
+    
+    <!-- Подключение VK Open API -->
     <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript"></script>
-    <!-- Firebase -->
+
+    <!-- Подключение Firebase (База данных) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mobile.css">
 </head>
-<body class="loading-state">
-
-    <!-- Экран загрузки (предотвращает мигание) -->
-    <div id="app-loader">
-        <div class="spinner"></div>
-    </div>
+<body>
+    <!-- Мобильная навигация -->
+    <div class="mobile-nav-overlay" id="mobile-nav-overlay" onclick="app.closeMobileNav()"></div>
+    <nav class="mobile-nav" id="mobile-nav">
+        <div class="mobile-nav-header">
+            <div class="mobile-user">
+                <div class="profile-avatar-small" id="mobile-avatar">👤</div>
+                <span id="mobile-username">Профиль</span>
+            </div>
+            <button class="mobile-close-btn" onclick="app.closeMobileNav()">✕</button>
+        </div>
+        <div class="mobile-nav-items">
+            <button class="mobile-nav-item" onclick="app.navigate('tickets')">
+                <span class="nav-icon">📚</span> Билеты
+            </button>
+            <button class="mobile-nav-item" onclick="app.navigate('ranges')">
+                <span class="nav-icon">🎯</span> Диапазон
+            </button>
+            <button class="mobile-nav-item" onclick="app.navigate('marathon-intro')">
+                <span class="nav-icon">🏃</span> Марафон
+            </button>
+            <button class="mobile-nav-item" onclick="app.navigate('exam-start')">
+                <span class="nav-icon">📝</span> Экзамен
+            </button>
+            <button class="mobile-nav-item" onclick="app.navigate('mistakes')">
+                <span class="nav-icon">⚠️</span> Ошибки
+            </button>
+            <button class="mobile-nav-item" onclick="app.handleProfileClick()">
+                <span class="nav-icon">👤</span> Профиль
+            </button>
+        </div>
+        <div class="mobile-nav-footer">
+            <button class="text-btn" onclick="app.logout()">Выйти</button>
+        </div>
+    </nav>
 
     <header id="main-header" style="display:none;">
         <div class="header-inner">
-            <nav class="nav-bar">
-                <button class="nav-btn" data-target="tickets" onclick="app.navigate('tickets')">Билеты</button>
-                <button class="nav-btn" data-target="ranges" onclick="app.navigate('ranges')">Темы</button>
-                <button class="nav-btn" data-target="marathon-intro" onclick="app.navigate('marathon-intro')">Марафон</button>
-                <button class="nav-btn" data-target="exam-start" onclick="app.navigate('exam-start')">Экзамен</button>
-                <button class="nav-btn" data-target="mistakes" onclick="app.navigate('mistakes')">Ошибки</button>
-            </nav>
+            <!-- Мобильное меню -->
+            <button class="mobile-menu-btn" onclick="app.openMobileNav()" aria-label="Меню">
+                <span></span><span></span><span></span>
+            </button>
             
+            <!-- Логотип/Название -->
+            <div class="header-title">ПДД</div>
+            
+            <!-- Профиль -->
             <div class="profile-nav-btn" onclick="app.handleProfileClick()">
-                <div class="profile-avatar-small" id="header-avatar"></div>
+                <span id="header-username">Профиль</span>
+                <div class="profile-avatar-small" id="header-avatar">👤</div>
             </div>
         </div>
     </header>
@@ -42,29 +77,40 @@
         <div class="container" id="main-container">
 
             <!-- 0. АВТОРИЗАЦИЯ -->
-            <section id="view-auth" class="view-section">
+            <section id="view-auth" class="view-section active">
                 <div class="auth-card">
-                    <h2>Вход</h2>
-                    <p class="subtitle">Синхронизация прогресса</p>
+                    <div class="soft-icon profile">
+                        <div class="shape-1"></div>
+                        <div class="shape-2"></div>
+                    </div>
+                    <h2 id="auth-title">Вход в профиль</h2>
+                    <p style="color:#57606a; margin-bottom:20px;">Войдите, чтобы синхронизировать прогресс между устройствами.</p>
                     
+                    <!-- Соцсети -->
                     <div class="social-auth">
+                        <!-- Кнопка VK -->
                         <button class="vk-btn" onclick="app.loginVK()">
-                            VK ID
+                            <span style="font-weight:bold; margin-right:8px; font-family: sans-serif;">VK</span> Войти через ВКонтакте
                         </button>
+                        
                         <div style="height: 10px;"></div>
+
+                        <!-- Контейнер для кнопки Google -->
                         <div id="google_btn_container"></div>
                     </div>
 
-                    <div class="divider">или локально</div>
+                    <div class="divider">или локальный профиль</div>
 
                     <div class="auth-form">
-                        <input type="text" id="auth-login" placeholder="Логин" autocomplete="off">
+                        <input type="text" id="auth-login" placeholder="Придумайте Логин" autocomplete="off">
                         <input type="password" id="auth-pass" placeholder="Пароль">
-                        <button class="primary-btn large-btn full-width" onclick="app.performAuth()">Войти</button>
+                        <button class="primary-btn large-btn" style="width:100%; margin-top:10px;" onclick="app.performAuth()">Войти</button>
                     </div>
 
                     <div class="auth-footer">
-                        <button class="text-btn" onclick="app.toggleAuthMode()">Регистрация / Вход</button>
+                        <span id="auth-toggle-text">Нет аккаунта?</span>
+                        <button class="text-btn" onclick="app.toggleAuthMode()">Зарегистрироваться</button>
+                        <p style="font-size: 10px; margin-top: 10px; color: #999;">Локальный профиль сохраняется только в этом браузере.</p>
                     </div>
                 </div>
             </section>
@@ -72,62 +118,78 @@
             <!-- 0.1 ПРОФИЛЬ -->
             <section id="view-profile" class="view-section">
                 <div class="profile-header-card">
-                    <div class="profile-avatar-large" id="profile-avatar-large"></div>
+                    <div class="profile-avatar-large" id="profile-avatar-large">👤</div>
                     <div class="profile-info">
-                        <h2 id="profile-name">Пользователь</h2>
-                        <p id="profile-sync-status">Статус синхронизации</p>
+                        <h2 id="profile-name" style="margin:0; color:#fff;">Пользователь</h2>
+                        <p id="profile-sync-status" style="color:#adbac7; font-size:14px; margin-top:5px;">Синхронизация отключена</p>
                     </div>
+                    <button class="secondary-btn-dark" onclick="app.logout()">Выйти</button>
                 </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="stat-tickets">0</div>
-                        <div class="stat-desc">Билетов</div>
+                        <div class="stat-desc">Решено билетов</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="stat-mistakes">0</div>
-                        <div class="stat-desc">Ошибок</div>
+                        <div class="stat-desc">Ошибок накоплено</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="stat-exam">0%</div>
-                        <div class="stat-desc">Успешность</div>
+                        <div class="stat-desc">Успешность экзаменов</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="stat-marathon">0</div>
-                        <div class="stat-desc">Марафон</div>
+                        <div class="stat-value" id="stat-marathon">0/800</div>
+                        <div class="stat-desc">Прогресс марафона</div>
                     </div>
                 </div>
-                <button class="secondary-btn-dark full-width" style="margin-top:20px" onclick="app.logout()">Выйти</button>
             </section>
             
             <!-- 1. БИЛЕТЫ -->
             <section id="view-tickets" class="view-section">
-                <div class="section-header">
-                    <h3>Учебные билеты</h3>
-                    <p>40 билетов по 20 вопросов</p>
+                <div class="menu-card-rect">
+                    <div class="soft-icon tickets">
+                        <div class="shape-1"></div>
+                        <div class="shape-2"></div>
+                    </div>
+                    <div class="menu-card-info">
+                        <h3>Учебные билеты</h3>
+                        <p>Классический способ подготовки. 40 билетов по 20 вопросов.</p>
+                    </div>
                 </div>
-                <div id="tickets-menu" class="btn-grid">Загрузка...</div>
+                <div class="content-box">
+                    <div id="tickets-menu" class="btn-grid">Загрузка...</div>
+                </div>
             </section>
 
             <!-- 2. ДИАПАЗОН -->
             <section id="view-ranges" class="view-section">
-                <div class="section-header">
-                    <h3>Диапазон вопросов</h3>
-                    <p>Выберите номера вопросов</p>
+                <div class="menu-card-rect">
+                    <div class="soft-icon range">
+                        <div class="shape-1"></div>
+                        <div class="shape-2"></div>
+                    </div>
+                    <div class="menu-card-info">
+                        <h3>Выбор диапазона</h3>
+                        <p>Настройте интервал вопросов для точечной отработки тем.</p>
+                    </div>
                 </div>
                 
-                <div class="content-box">
+                <div class="content-box" style="text-align: center;">
                     <div class="range-controls">
                         <div class="range-inputs">
                             <div class="input-group">
-                                <label>От</label>
+                                <label>С вопроса №</label>
                                 <input type="number" id="range-start" min="1" max="20" placeholder="1" value="1">
                             </div>
                             <div class="input-group">
-                                <label>До</label>
+                                <label>По вопрос №</label>
                                 <input type="number" id="range-end" min="1" max="20" placeholder="20" value="1">
                             </div>
                         </div>
-                        <button class="primary-btn large-btn full-width" style="margin-top:20px;" onclick="app.startRangeCustom()">Начать</button>
+
+                        <button class="primary-btn large-btn" style="margin-top:25px; width:100%;" onclick="app.startRangeCustom()">Начать тестирование</button>
                     </div>
                 </div>
             </section>
@@ -135,138 +197,174 @@
             <!-- 3. МАРАФОН -->
             <section id="view-marathon-intro" class="view-section">
                 <div class="intro-card">
+                    <div class="soft-icon marathon">
+                        <div class="shape-1"></div>
+                        <div class="shape-2"></div>
+                        <div class="shape-3"></div>
+                    </div>
+                    
                     <h2>Марафон 800</h2>
-                    <p>Все вопросы подряд без ограничений по времени.</p>
+                    <p>Все 800 вопросов в одном забеге.</p>
                     <div style="margin-top: 30px;">
-                        <button class="primary-btn large-btn full-width" onclick="app.startMarathon()">Начать</button>
+                        <button class="primary-btn large-btn" onclick="app.startMarathon()">Начать марафон</button>
                     </div>
+                    <p style="font-size: 12px; color: #57606a; margin-top: 15px;">Прогресс сохраняется автоматически.</p>
                 </div>
             </section>
 
-            <!-- 4. ЭКЗАМЕН (START) -->
+            <!-- 4. ЭКЗАМЕН -->
             <section id="view-exam-start" class="view-section">
-                <div class="intro-card exam-intro">
-                    <h2>Экзамен ГИБДД</h2>
-                    <div class="exam-rules-list">
-                        <div>20 вопросов / 20 минут</div>
-                        <div>1 ошибка = +5 вопросов</div>
-                        <div>2 ошибки в блоке = провал</div>
+                <div class="intro-card">
+                    <div class="soft-icon exam">
+                        <div class="shape-1"></div>
+                        <div class="shape-2"></div>
+                        <div class="shape-3"></div>
                     </div>
+
+                    <h2>Экзамен ГИБДД</h2>
+                    
+                    <div class="exam-rules-list">
+                        <div style="margin-bottom:5px;">⏱ 20 вопросов / 20 минут</div>
+                        <div style="margin-bottom:5px;">⚠ 1 ошибка = +5 доп. вопросов</div>
+                        <div>⚠ 2 ошибки (разные блоки) = +10 доп. вопросов</div>
+                    </div>
+
                     <div style="margin-top: 30px;">
-                        <button class="primary-btn large-btn full-width" onclick="app.startRealExam()">Начать экзамен</button>
+                        <button class="primary-btn large-btn" onclick="app.startRealExam()">Начать экзамен</button>
                     </div>
                 </div>
             </section>
 
-            <!-- 5. ДАШБОРД ЭКЗАМЕНА (НЕ МЕНЯЕМ ЛЕЙАУТ) -->
-            <section id="view-exam-dashboard" class="view-section full-width-exam">
+            <!-- 5. ДАШБОРД ЭКЗАМЕНА -->
+            <section id="view-exam-dashboard" class="view-section full-width">
                 <div class="dashboard-header">
                     <div class="dash-timer" id="dash-timer">20:00</div>
                     <div style="flex:1"></div>
-                    <button class="nav-btn small" onclick="app.finishExamEarly()">Завершить</button>
+                    <button class="nav-btn" style="background:#2d333b; color:#adbac7; border:1px solid #444c56; z-index: 10;" onclick="app.finishExamEarly()">Завершить</button>
                 </div>
                 <div id="exam-grid" class="exam-grid-container"></div>
             </section>
 
             <!-- 6. ОШИБКИ -->
             <section id="view-mistakes" class="view-section">
-                <div class="section-header">
-                    <h3>Работа над ошибками</h3>
+                <div class="menu-card-rect">
+                    <div class="soft-icon mistakes">
+                        <div class="shape-1"></div>
+                        <div class="shape-2"></div>
+                        <div class="shape-3"></div>
+                    </div>
+                    <div class="menu-card-info">
+                        <h3>Работа над ошибками</h3>
+                        <p>Вопросы, в которых вы ошиблись, сохраняются здесь.</p>
+                    </div>
                 </div>
+
                 <div class="content-box">
                     <div id="mistakes-controls" style="text-align: center; margin-bottom: 20px;"></div>
                     <div id="mistakes-grid" class="grid-simple"></div>
                 </div>
             </section>
 
-            <!-- 7. ВОПРОСЫ (ОБУЧЕНИЕ) -->
+            <!-- 7. ВОПРОСЫ (с улучшенной навигацией) -->
             <section id="view-questions" class="view-section">
-                
-                <!-- Статистика марафона -->
                 <div id="marathon-stats" class="marathon-stats-bar" style="display:none;">
-                    <div class="stat-item success">
-                        <span class="stat-val" id="m-correct">0</span>
+                    <div class="stat-item">
+                        <span class="stat-val" style="color:var(--color-success-fg)" id="m-correct">0</span>
+                        <span class="stat-label">Верно</span>
                     </div>
-                    <div class="stat-item danger">
-                        <span class="stat-val" id="m-wrong">0</span>
+                    <div class="stat-item">
+                        <span class="stat-val" style="color:var(--color-danger-fg)" id="m-wrong">0</span>
+                        <span class="stat-label">Ошибки</span>
                     </div>
-                    <div class="stat-item neutral">
-                        <span class="stat-val" id="m-total">0/800</span>
+                    <div class="stat-item">
+                        <span class="stat-val" style="color:#0969da" id="m-total">0/800</span>
+                        <span class="stat-label">Прогресс</span>
                     </div>
                 </div>
-
-                <!-- Пагинация (Билеты) -->
-                <div id="pagination" class="pagination-container"></div>
-                <!-- Сетка (Марафон) -->
-                <div id="marathon-pagination" class="marathon-grid" style="display:none;"></div>
                 
-                <!-- Контейнер вопроса -->
-                <div id="question-wrapper">
-                    <div id="current-question-container"></div>
+                <!-- Контейнер для свайпа -->
+                <div class="swipe-container" id="swipe-container">
+                    <div id="pagination" class="pagination-container"></div>
+                    <div id="marathon-pagination" class="marathon-grid" style="display:none;"></div>
+                    
+                    <div class="question-swipe-wrapper">
+                        <div class="question-card-swipe" id="current-question-card">
+                            <!-- Контент вопроса будет здесь -->
+                        </div>
+                    </div>
+                    
+                    <div class="swipe-hint">
+                        <span class="swipe-arrow">←</span> Листайте вопросы
+                        <span class="swipe-arrow">→</span>
+                    </div>
                 </div>
-
-                <div class="nav-controls-bottom">
-                    <button class="nav-icon-btn" onclick="app.goBack()">Меню</button>
-                    <div class="swipe-hint">Свайп для навигации</div>
+                
+                <div class="nav-controls">
+                    <button onclick="app.goBack()">Меню</button>
+                    <button id="btn-prev" class="secondary-btn-dark" onclick="app.prevQuestion()" style="display:none;">← Назад</button>
+                    <button id="btn-next" class="primary-btn" onclick="app.nextQuestion()">Далее →</button>
+                    <button id="btn-finish-train" class="primary-btn" onclick="app.finishTraining()" style="display:none;">Завершить</button>
                 </div>
             </section>
 
             <!-- 8. ИТОГИ -->
             <section id="view-summary" class="view-section">
-                <div class="content-box center-text">
+                <div class="content-box" style="text-align:center;">
                     <h2>Результат</h2>
                     <div class="summary-stats">
-                        <div class="sum-item">
-                            <b id="sum-time">00:00</b>
-                            <span>Время</span>
+                        <div style="display:inline-block; margin:0 20px;">
+                            <b id="sum-time" style="font-size:24px; display:block;">00:00</b>
+                            <span style="color:#57606a;">Время</span>
                         </div>
-                        <div class="sum-item">
-                            <b id="sum-errors" class="danger-text">0</b>
-                            <span>Ошибки</span>
+                        <div style="display:inline-block; margin:0 20px;">
+                            <b id="sum-errors" style="font-size:24px; color:var(--color-danger-fg); display:block;">0</b>
+                            <span style="color:#57606a;">Ошибки</span>
                         </div>
                     </div>
-                    <p id="exam-result-message"></p>
-                    <button class="primary-btn large-btn full-width" onclick="app.navigate('tickets')">В меню</button>
+                    <div id="exam-result-message" style="margin-top:20px; font-weight:bold; font-size: 18px;"></div>
+                    <br>
+                    <button class="primary-btn large-btn" onclick="app.navigate('tickets')">В меню</button>
                 </div>
-                <div id="summary-errors-list"></div>
+                <div id="summary-errors-list" style="margin-top:20px;"></div>
             </section>
 
         </div>
     </main>
 
-    <!-- МОДАЛКИ (ЭКЗАМЕН) -->
+    <!-- МОДАЛКИ -->
     <div id="exam-modal" class="modal-overlay">
         <div class="modal-content dark-modal">
             <div id="exam-modal-question"></div>
             <div class="modal-footer dark-footer">
-                <button onclick="app.closeExamModal()" class="secondary-btn-dark">Закрыть</button>
-                <button id="btn-confirm-exam" class="primary-btn" disabled onclick="app.confirmExamAnswer()">Ответить</button>
+                <div style="font-size:12px; opacity:0.7;">Enter - подтвердить</div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="app.closeExamModal()" class="secondary-btn-dark">Закрыть</button>
+                    <button id="btn-confirm-exam" class="primary-btn" disabled onclick="app.confirmExamAnswer()">Подтвердить</button>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="exam-result-modal" class="modal-overlay">
-        <div class="modal-content result-modal-content dark-modal">
+        <div class="modal-content result-modal-content dark-modal" style="padding:40px; text-align:center;">
             <h2 id="modal-res-title"></h2>
-            <p id="modal-res-text"></p>
-            <div class="modal-actions">
+            <p id="modal-res-text" style="font-size: 16px; margin: 20px 0;"></p>
+            <div class="modal-actions" style="display:flex; gap:10px; justify-content:center;">
                 <button onclick="app.finishExamReview()" class="secondary-btn-dark">Разбор</button>
                 <button class="primary-btn" onclick="app.startRealExam()">Заново</button>
             </div>
         </div>
     </div>
-
     <div id="confirm-modal" class="modal-overlay" style="z-index: 300;">
-        <div class="modal-content dark-modal confirm-box">
-            <h3>Выход</h3>
-            <p>Прогресс экзамена будет потерян.</p>
-            <div class="modal-actions">
-                <button class="secondary-btn-dark" onclick="app.cancelExit()">Отмена</button>
-                <button class="primary-btn danger-btn" onclick="app.confirmExit()">Выйти</button>
+        <div class="modal-content dark-modal" style="max-width: 400px; height: auto; padding: 30px; text-align: center; border-radius: 12px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px;">Выход из экзамена</h3>
+            <p style="color: #adbac7; margin-bottom: 25px;">Вы уверены? Текущий прогресс экзамена будет потерян.</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="secondary-btn-dark" style="width: 100px;" onclick="app.cancelExit()">Нет</button>
+                <button class="primary-btn" style="background-color: var(--color-danger-fg); border-color: var(--color-danger-fg); width: 100px;" onclick="app.confirmExit()">Да, выйти</button>
             </div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
