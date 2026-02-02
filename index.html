@@ -2,9 +2,9 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0f172a">
-    <title>ПДД Экзамен</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>pdd unique</title>
     
     <!-- Подключение библиотеки Google Auth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -17,55 +17,19 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="mobile.css">
 </head>
 <body>
-    <!-- Мобильная навигация -->
-    <div class="mobile-nav-overlay" id="mobile-nav-overlay" onclick="app.closeMobileNav()"></div>
-    <nav class="mobile-nav" id="mobile-nav">
-        <div class="mobile-nav-header">
-            <div class="mobile-user">
-                <div class="profile-avatar-small" id="mobile-avatar">👤</div>
-                <span id="mobile-username">Профиль</span>
-            </div>
-            <button class="mobile-close-btn" onclick="app.closeMobileNav()">✕</button>
-        </div>
-        <div class="mobile-nav-items">
-            <button class="mobile-nav-item" onclick="app.navigate('tickets')">
-                <span class="nav-icon">📚</span> Билеты
-            </button>
-            <button class="mobile-nav-item" onclick="app.navigate('ranges')">
-                <span class="nav-icon">🎯</span> Диапазон
-            </button>
-            <button class="mobile-nav-item" onclick="app.navigate('marathon-intro')">
-                <span class="nav-icon">🏃</span> Марафон
-            </button>
-            <button class="mobile-nav-item" onclick="app.navigate('exam-start')">
-                <span class="nav-icon">📝</span> Экзамен
-            </button>
-            <button class="mobile-nav-item" onclick="app.navigate('mistakes')">
-                <span class="nav-icon">⚠️</span> Ошибки
-            </button>
-            <button class="mobile-nav-item" onclick="app.handleProfileClick()">
-                <span class="nav-icon">👤</span> Профиль
-            </button>
-        </div>
-        <div class="mobile-nav-footer">
-            <button class="text-btn" onclick="app.logout()">Выйти</button>
-        </div>
-    </nav>
 
     <header id="main-header" style="display:none;">
         <div class="header-inner">
-            <!-- Мобильное меню -->
-            <button class="mobile-menu-btn" onclick="app.openMobileNav()" aria-label="Меню">
-                <span></span><span></span><span></span>
-            </button>
+            <nav class="nav-bar">
+                <button class="nav-btn active" onclick="app.navigate('tickets')">Билеты</button>
+                <button class="nav-btn" onclick="app.navigate('ranges')">Диапазон</button>
+                <button class="nav-btn" onclick="app.navigate('marathon-intro')">Марафон</button>
+                <button class="nav-btn" onclick="app.navigate('exam-start')">Экзамен</button>
+                <button class="nav-btn" onclick="app.navigate('mistakes')">Ошибки</button>
+            </nav>
             
-            <!-- Логотип/Название -->
-            <div class="header-title">ПДД</div>
-            
-            <!-- Профиль -->
             <div class="profile-nav-btn" onclick="app.handleProfileClick()">
                 <span id="header-username">Профиль</span>
                 <div class="profile-avatar-small" id="header-avatar">👤</div>
@@ -265,7 +229,7 @@
                 </div>
             </section>
 
-            <!-- 7. ВОПРОСЫ (с улучшенной навигацией) -->
+            <!-- 7. ВОПРОСЫ -->
             <section id="view-questions" class="view-section">
                 <div id="marathon-stats" class="marathon-stats-bar" style="display:none;">
                     <div class="stat-item">
@@ -281,28 +245,12 @@
                         <span class="stat-label">Прогресс</span>
                     </div>
                 </div>
-                
-                <!-- Контейнер для свайпа -->
-                <div class="swipe-container" id="swipe-container">
-                    <div id="pagination" class="pagination-container"></div>
-                    <div id="marathon-pagination" class="marathon-grid" style="display:none;"></div>
-                    
-                    <div class="question-swipe-wrapper">
-                        <div class="question-card-swipe" id="current-question-card">
-                            <!-- Контент вопроса будет здесь -->
-                        </div>
-                    </div>
-                    
-                    <div class="swipe-hint">
-                        <span class="swipe-arrow">←</span> Листайте вопросы
-                        <span class="swipe-arrow">→</span>
-                    </div>
-                </div>
-                
+                <div id="pagination" class="pagination-container"></div>
+                <div id="marathon-pagination" class="marathon-grid" style="display:none;"></div>
+                <div id="current-question-container"></div>
                 <div class="nav-controls">
                     <button onclick="app.goBack()">Меню</button>
-                    <button id="btn-prev" class="secondary-btn-dark" onclick="app.prevQuestion()" style="display:none;">← Назад</button>
-                    <button id="btn-next" class="primary-btn" onclick="app.nextQuestion()">Далее →</button>
+                    <button id="btn-next" class="primary-btn" onclick="app.nextQuestion()">Далее ➜</button>
                     <button id="btn-finish-train" class="primary-btn" onclick="app.finishTraining()" style="display:none;">Завершить</button>
                 </div>
             </section>
