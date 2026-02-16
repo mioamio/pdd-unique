@@ -1,1 +1,1 @@
-# pdd-unique
+# [pdd-unique](https://pdd-partner.ru/)
